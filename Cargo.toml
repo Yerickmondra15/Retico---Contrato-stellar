@@ -1,0 +1,10 @@
+[workspace]
+members = ["contracts/retico"]
+resolver = "2"
+
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+lto = true
+codegen-units = 1
+panic = "abort"

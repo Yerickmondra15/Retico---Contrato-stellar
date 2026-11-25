@@ -64,9 +64,45 @@ stellar contract invoke --id "$CONTRACT" --source-account merchant --network tes
 
 El importe de ejemplo es 2 XLM, expresado en 20 000 000 stroops. En un despliegue nuevo se obtiene el ID 1. El estado pasa de `Pending` a `Refunded` y la custodia vuelve a cero. La última invocación se rechaza con el código 3. Las comisiones de red se pagan aparte del depósito.
 
+### Demostración ejecutada
+
+El depósito #1 pasó de `Pending` a `Refunded` en Testnet. El saldo del contrato se verificó en 0 → 20 000 000 → 0 stroops. La simulación del segundo reembolso devolvió `Error(Contract, #3)`. Los dos eventos de ReTico y las transferencias del SAC quedaron registrados en las transacciones.
+
+| Evidencia | Testnet |
+| --- | --- |
+| Contrato | [CAIHEOOK…XDAGP](https://stellar.expert/explorer/testnet/contract/CAIHEOOKWC5A6H2EICMTC4S4MHR53H7WF7SFIIUWYNNY2ZCM3QEXDAGP) |
+| Despliegue | [fede5c49…](https://stellar.expert/explorer/testnet/tx/fede5c4943ea82be2a0ecad57e8e13c07f314702d7dbdd1cf93bb89570637583) |
+| Depósito de 2 XLM | [c26e2098…](https://stellar.expert/explorer/testnet/tx/c26e2098fd18f3bcd869ebd951409f542566d28b1772c7ee27b2118faf11acf5) |
+| Reembolso | [c423b080…](https://stellar.expert/explorer/testnet/tx/c423b080dd00d6764768ae3294c78654877c655c3898c1e6d98a29549126bc84) |
+
+GitHub Actions confirmó formato, las 13 pruebas y el build Wasm en `main`. [Ejecución del contrato](https://github.com/Yerickmondra15/Retico---Contrato-stellar/actions/runs/45719005629)
+
+## Interfaz web
+
+Desde la raíz, con Node.js 24.22.3:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+npm run build
+```
+
+Abrí la URL que imprime Vite. La consulta por ID funciona sin billetera y el depósito #1 permite comprobar el despliegue de ejemplo. Para firmar, instalá Freighter, seleccioná Testnet y conectá tu cuenta de prueba. Para ensayar el flujo completo con tus propias cuentas, desplegá el contrato como se indica arriba y definí `VITE_RETICO_CONTRACT_ID` en `frontend/.env.local` con la dirección de ese despliegue. Reiniciá Vite después del cambio.
+
+La interfaz usa React, TypeScript, Motion y dos adaptaciones de Kokonut UI con licencia MIT. Los tokens CSS centralizan color, foco, espaciado y radios. El flujo prioriza dos acciones, crear o consultar, y muestra la confirmación de devolución únicamente al comercio cuando el depósito está pendiente.
+
+Las comprobaciones en Chromium cubrieron navegación por teclado, validación, consulta real de Testnet, el error por depósito inexistente, respuesta sin extensión y reflujo a 320 px. axe no detectó infracciones con las reglas WCAG 2.2 AA ejecutadas. La cobertura automatizada es parcial. El entorno de navegador usó el RPC público mediante un puente de pruebas para confiar en la CA del proxy de ejecución.
+
+El frontend también creó y reembolsó el depósito #2 en Testnet. La prueba automatizada sustituyó la extensión Freighter por un fixture que firmó con Stellar CLI. Así se comprobó el flujo de preparación, envío y confirmación con las dos cuentas de prueba. La interacción con la extensión instalada queda pendiente de una prueba manual. [Depósito #2](https://stellar.expert/explorer/testnet/tx/af835148a6f44e857ab557beb2af1834eb4ae41cdcfa0f97c5f60b371c45087f) · [Reembolso #2](https://stellar.expert/explorer/testnet/tx/c2cc3066c1231fecb8c6fc0c28d8f8dac91ec44c72b9108891621e4327d7dda5)
+
 ## Límites operativos
 
 - El comercio verifica la devolución física y conserva la responsabilidad de firmar el reembolso. Si pierde el acceso a su cuenta, el contrato carece de un mecanismo alternativo de reembolso.
 - Los depósitos carecen de vencimiento de negocio. Soroban puede archivar sus datos persistentes y la instancia. El contrato extiende el TTL de la instancia y de cada depósito escrito al máximo permitido cuando su TTL cae por debajo de la mitad. Las consultas se pueden simular sin escribir. Para entradas archivadas, usá un RPC y herramientas que soporten la restauración, y revisá los costos. [Archivado en Stellar](https://developers.stellar.org/docs/learn/fundamentals/contract-development/storage/state-archival)
 - El token se fija al desplegar. La demo usa el SAC nativo de XLM y depende de que el token respete la semántica de transferencia. La red de pruebas puede reiniciarse y invalidar las cuentas y el despliegue publicado.
 - Proyecto educativo para Stellar Testnet, sin auditoría externa.
+
+## Entrega en main
+
+El repositorio reúne contrato, pruebas, flujo de GitHub Actions e interfaz en `main`. Para presentar el proyecto, enlazá esa rama, la ejecución de Actions y las transacciones de la demostración. Si la red de pruebas se reinicia, repetí el despliegue, actualizá la dirección pública del frontend y registrá las nuevas transacciones.

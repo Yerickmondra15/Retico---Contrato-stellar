@@ -1,12 +1,37 @@
-# ReTico
+<p align="center"><img src="frontend/public/brand/retico-dark.svg" alt="" width="76" height="76"></p>
 
-Depósitos reembolsables para envases reutilizables en Stellar Testnet. El cliente firma el depósito de XLM, ReTico mantiene los fondos en custodia y el comercio autorizado devuelve el importe íntegro al confirmar que recibió el envase. Cada depósito se reembolsa una sola vez.
+<h1 align="center">ReTico</h1>
+<p align="center"><strong>Devolvé. Reutilizá. Repetí.</strong><br>Lo bueno vuelve.</p>
+<p align="center">Rust · Soroban · Stellar Testnet · React + TypeScript</p>
 
-En Costa Rica se estimaron 229 612 toneladas de residuos plásticos domésticos en 2022, de las cuales se reciclaron unas 28 000. La reforma de la Ley 8839 incluye los sistemas de depósito y reembolso entre los instrumentos de gestión de residuos. [Huella Plástica en Costa Rica, PNUD](https://pnud-conocimiento.cr/repositorio/huella_plastica_cr/) · [Reforma de la Ley 8839, Procuraduría General de la República](https://www.pgrweb.go.cr/DOCS/NORMAS/1/VIGENTE/L/2020-2029/2020-2024/2021/17513/14841C.HTML)
+## ¿De dónde salió la idea?
 
-## Por qué Stellar
+En Costa Rica, comprar algo para llevar muchas veces significa terminar con otro envase desechable. La idea de ReTico es probar una alternativa pequeña: usar un envase reutilizable, dejar un depósito y recuperarlo al devolverlo.
 
-Soroban permite aplicar en una sola transacción las reglas del depósito, la autorización de la cuenta que firma y la transferencia de XLM mediante el Stellar Asset Contract. El ledger ofrece un estado consultable por ID y un registro público de los movimientos. Esto permite usar Freighter y un RPC de Testnet desde el navegador. La verificación física del envase sigue a cargo del comercio. [Contratos y activos en Stellar](https://developers.stellar.org/docs/learn/fundamentals/stellar-data-structures/assets)
+Según el [PNUD](https://pnud-conocimiento.cr/repositorio/huella_plastica_cr/), en 2022 se estimaron 229 612 toneladas de residuos plásticos domésticos en Costa Rica, de las cuales se reciclaron unas 28 000. La [reforma de la Ley 8839](https://www.pgrweb.go.cr/DOCS/NORMAS/1/VIGENTE/L/2020-2029/2020-2024/2021/17513/14841C.HTML) contempla sistemas de depósito y reembolso entre los instrumentos de gestión de residuos.
+
+Elegí trabajar con esta parte del problema porque es concreta y permite practicar algo que me interesaba del bootcamp: cómo un contrato inteligente puede custodiar fondos y aplicar reglas sin depender de una base de datos propia. No pretende resolver todo el problema de los residuos; es una prueba de concepto individual.
+
+## ¿Cómo funciona?
+
+| Paso | Qué sucede |
+| --- | --- |
+| 1. Envase | El cliente firma un depósito en XLM de prueba y recibe un ID. |
+| 2. Custodia | ReTico retiene el importe en el contrato. |
+| 3. Devolución | El comercio recibe el envase y confirma la devolución. |
+| 4. Reembolso | El contrato devuelve el importe íntegro al cliente original, una sola vez. |
+
+El proyecto está pensado para **Stellar Testnet**. Los fondos son de prueba y las comisiones se pagan aparte.
+
+## ¿Por qué Stellar?
+
+Me interesaba que el dinero del depósito no quedara simplemente anotado en una aplicación. Con Soroban, la autorización, el cambio de estado y la transferencia se realizan en una misma transacción. Además, se puede consultar el depósito por ID y comprobar las transacciones públicamente.
+
+El contrato usa un Stellar Asset Contract (SAC), mientras que la interfaz se comunica con el RPC de Testnet y Freighter. La devolución física sigue dependiendo del comercio: blockchain no puede comprobar por sí sola si alguien entregó un envase. [Más sobre los activos de Stellar](https://developers.stellar.org/docs/learn/fundamentals/stellar-data-structures/assets).
+
+## Probalo
+
+Si solo querés ver cómo funciona, podés iniciar la interfaz web y consultar el depósito de ejemplo **#1** sin conectar una billetera. Más abajo están las instrucciones de ejecución, las pruebas y las transacciones reales de la demo.
 
 ## Contrato
 
@@ -95,7 +120,7 @@ npm run dev
 
 Abrí la URL que imprime Vite. La consulta por ID funciona sin billetera y el depósito #1 permite comprobar el despliegue de ejemplo. Para firmar, instalá Freighter, seleccioná Testnet y conectá tu cuenta de prueba. Para ensayar el flujo completo con tus propias cuentas, desplegá el contrato como se indica arriba y definí `VITE_RETICO_CONTRACT_ID` en `frontend/.env.local` con la dirección de ese despliegue. Reiniciá Vite después del cambio.
 
-La segunda iteración incorpora un logo propio en SVG con variantes de encabezado, uso sobre fondo oscuro y favicon. The ReTico Loop recorre en una sola vuelta las etapas de envase, custodia, devolución y reembolso. La ilustración y las etiquetas quedan disponibles con movimiento reducido. La interfaz usa React, TypeScript, Motion y adaptaciones de Kokonut UI con licencia MIT. Los tokens CSS y de Motion controlan contraste, tipografía, espaciado, radios, sombras y duraciones.
+La segunda iteración incorpora un logo propio en SVG con variantes de encabezado, uso sobre fondo oscuro y favicon. The ReTico Loop explica las cuatro etapas con una ilustración, un indicador activo y una descripción que cambia verticalmente, inspirado en [Dynamic Text de Kokonut UI](https://kokonutui.com/docs/texts/dynamic-text). Se puede pausar, avanzar y repetir; con movimiento reducido se usa el avance manual. La adaptación utiliza Motion y CSS existentes, sin instalar Tailwind ni shadcn. La interfaz usa React, TypeScript, Motion y adaptaciones de Kokonut UI con licencia MIT. Los tokens CSS y de Motion controlan contraste, tipografía, espaciado, radios, sombras y duraciones.
 
 El rol de la billetera se determina con la dirección de comercio registrada en el contrato. El comprobante muestra el ID copiable, el importe, el estado, las fechas del ledger en hora de Costa Rica y un enlace al explorador. Durante la sesión se enlaza la transacción asociada si está disponible. Las consultas por ID enlazan el contrato cuando el hash no está disponible.
 
@@ -120,6 +145,10 @@ La segunda iteración creó y reembolsó el depósito #5 en Testnet. La prueba r
 - El token se fija al desplegar. La demo usa el SAC nativo de XLM y depende de que el token respete la semántica de transferencia. La red de pruebas puede reiniciarse y invalidar las cuentas y el despliegue publicado.
 - Proyecto educativo para Stellar Testnet, sin auditoría externa.
 
-## Entrega en main
+## Sobre la entrega
 
-El repositorio reúne contrato, pruebas, flujo de GitHub Actions e interfaz en `main`. El commit `5335ea7` es la referencia estable anterior al rediseño. Para presentar el proyecto, enlazá esa rama, la ejecución de Actions y las transacciones de la demostración. Si la red de pruebas se reinicia, repetí el despliegue, actualizá la dirección pública del frontend y registrá las nuevas transacciones.
+Este es mi primer contrato inteligente para el Pura Vida Bootcamp. La entrega incluye el contrato, las pruebas, GitHub Actions y una interfaz para experimentar con Stellar Testnet. El commit `5335ea7` queda como referencia estable anterior al rediseño. Si la red de pruebas se reinicia, repetí el despliegue, actualizá la dirección pública del frontend y registrá las nuevas transacciones.
+
+---
+
+Proyecto académico del Pura Vida Bootcamp · Yerick M.

@@ -169,7 +169,11 @@ export function App() {
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero-copy">
             <div className="eyebrow"><Package size={17} aria-hidden="true" /> Lo bueno vuelve</div>
-            <h1 id="hero-title">Devolvé.<br /><em>Reutilizá.</em><br />Repetí.</h1>
+            <h1 id="hero-title" className="hero-headline">
+              <span className="hero-word hero-word-return">Devolvé.</span><br />
+              <span className="hero-word hero-word-reuse">Reutilizá.</span><br />
+              <span className="hero-word hero-word-repeat">Repetí.</span>
+            </h1>
             <p>Usá un envase reutilizable y recuperá tu depósito en XLM de prueba cuando lo devolvás.</p>
             <a className="hero-link" href="#depositos">Ir a los depósitos <ArrowDown size={18} aria-hidden="true" /></a>
           </div>

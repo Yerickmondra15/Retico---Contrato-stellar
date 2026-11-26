@@ -1,3 +1,4 @@
+import { expiredWithoutInclusion, parsePending, type PendingTransaction } from "./pending";
 import { getNetwork, isConnected, requestAccess, signTransaction } from "@stellar/freighter-api";
 import {
   Account, Address, BASE_FEE, Contract, Networks, StrKey, TransactionBuilder,
@@ -18,6 +19,8 @@ export type Deposit = {
   amount: bigint;
   customer: string;
   status: ["Pending" | "Refunded"];
+  created_at: bigint;
+  refunded_at?: bigint | null;
 };
 
 export function parseAmount(value: string): bigint {
@@ -90,44 +93,98 @@ type Write =
   | { method: "create_deposit"; amount: bigint }
   | { method: "refund_deposit"; id: bigint };
 
-type TransactionProgress = (phase: "signing" | "confirming", hash?: string) => void;
+export type WritePhase = "preparing" | "signing" | "sending" | "confirming";
+
+const storageKey = `retico:testnet:${contractId}:pending`;
+
+export function pendingTransaction() {
+  return parsePending(localStorage.getItem(storageKey));
+}
+
+export async function clearPending(transaction: PendingTransaction) {
+  await navigator.locks.request(storageKey, () => {
+    if (pendingTransaction()?.hash === transaction.hash) localStorage.removeItem(storageKey);
+  });
+}
 
 function hex(bytes: Uint8Array) {
   return Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export async function submit(address: string, action: Write, onProgress: TransactionProgress) {
-  await requireTestnet();
-  const account = await server.getAccount(address);
-  const args = action.method === "create_deposit"
-    ? [new Address(address).toScVal(), nativeToScVal(action.amount, { type: "i128" })]
-    : [nativeToScVal(action.id, { type: "u64" })];
-  const transaction = await server.prepareTransaction(call(account, action.method, args));
-  onProgress("signing");
-  const signed = await signTransaction(transaction.toXDR(), {
-    address,
-    networkPassphrase: Networks.TESTNET,
-  });
-  if (signed.error || !signed.signedTxXdr) {
-    throw new Error("La firma no se completó en Freighter.");
-  }
-  const envelope = TransactionBuilder.fromXDR(signed.signedTxXdr, Networks.TESTNET);
-  const hash = hex(transaction.hash());
-  if (signed.signerAddress !== address || hash !== hex(envelope.hash())) {
-    throw new Error("La firma no corresponde a la cuenta y transacción solicitadas.");
-  }
+export async function submit(
+  address: string,
+  action: Write,
+  onProgress: (phase: WritePhase, transaction?: PendingTransaction) => void,
+) {
+  if (!navigator.locks) throw new Error("Abrí ReTico en localhost o HTTPS con un navegador actualizado.");
+  return navigator.locks.request(storageKey, { ifAvailable: true }, async lock => {
+    if (!lock) throw new Error("Hay una operación en curso en otra pestaña de ReTico.");
+    if (pendingTransaction()) throw new Error("Revisá la transacción anterior antes de firmar otra.");
 
-  onProgress("confirming", hash);
-  const sent = await server.sendTransaction(envelope);
-  if (sent.status === "ERROR") throw new Error("Testnet rechazó el envío de la transacción.");
-  const confirmed = await server.pollTransaction(hash, { attempts: 20 });
-  if (confirmed.status === Api.GetTransactionStatus.NOT_FOUND) {
-    throw new Error("La confirmación sigue pendiente. Revisá el enlace antes de reintentar.");
+    await requireTestnet();
+    const account = await server.getAccount(address);
+    const args = action.method === "create_deposit"
+      ? [new Address(address).toScVal(), nativeToScVal(action.amount, { type: "i128" })]
+      : [nativeToScVal(action.id, { type: "u64" })];
+    const transaction = await server.prepareTransaction(call(account, action.method, args));
+    onProgress("signing");
+    const signed = await signTransaction(transaction.toXDR(), {
+      address,
+      networkPassphrase: Networks.TESTNET,
+    });
+    if (signed.error || !signed.signedTxXdr) {
+      throw new Error("La firma no se completó en Freighter.");
+    }
+    const envelope = TransactionBuilder.fromXDR(signed.signedTxXdr, Networks.TESTNET);
+    const hash = hex(transaction.hash());
+    if (signed.signerAddress !== address || hash !== hex(envelope.hash())) {
+      throw new Error("La firma no corresponde a la cuenta y transacción solicitadas.");
+    }
+
+    const network = await server.getHealth();
+    const pending: PendingTransaction = {
+      hash,
+      expiresAt: Number(transaction.timeBounds?.maxTime),
+      firstLedger: network.latestLedger + 1,
+      ...(action.method === "create_deposit" ? { kind: "create" } :
+        { kind: "refund", depositId: action.id.toString() }),
+    };
+    // Persist only public metadata before any attempt to broadcast the envelope.
+    const serialized = JSON.stringify(pending);
+    parsePending(serialized);
+    localStorage.setItem(storageKey, serialized);
+    onProgress("sending", pending);
+
+    // A network failure can occur after the node received the request.
+    // Resolve all send outcomes by hash instead of broadcasting again.
+    try {
+      await server.sendTransaction(envelope);
+    } catch {
+      return pending;
+    }
+    return pending;
+  });
+}
+
+export async function reconcile(transaction: PendingTransaction, poll = false) {
+  const response = poll
+    ? await server.pollTransaction(transaction.hash, { attempts: 6 })
+    : await server.getTransaction(transaction.hash);
+  if (response.status === Api.GetTransactionStatus.NOT_FOUND) {
+    return { status: expiredWithoutInclusion(transaction, response) ? "expired" : "pending" } as const;
   }
-  if (confirmed.status !== Api.GetTransactionStatus.SUCCESS) {
-    throw new Error("La transacción se registró como fallida.");
+  if (response.status === Api.GetTransactionStatus.FAILED) return { status: "failed" } as const;
+
+  const id = transaction.kind === "refund" ? BigInt(transaction.depositId) :
+    response.returnValue && scValToNative(response.returnValue);
+  if (typeof id !== "bigint") {
+    throw new Error("La transacción se confirmó. Consultá el explorador para ver el ID del depósito.");
   }
-  return confirmed.returnValue ? scValToNative(confirmed.returnValue) : null;
+  const deposit = await readDeposit(id);
+  if (transaction.kind === "refund" && deposit.status[0] !== "Refunded") {
+    throw new Error("El reembolso se confirmó. El depósito todavía se está actualizando en el RPC.");
+  }
+  return { status: "confirmed", deposit } as const;
 }
 
 export function describeError(error: unknown) {

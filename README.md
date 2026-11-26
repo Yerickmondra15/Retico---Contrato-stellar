@@ -4,6 +4,10 @@ Depósitos reembolsables para envases reutilizables en Stellar Testnet. El clien
 
 En Costa Rica se estimaron 229 612 toneladas de residuos plásticos domésticos en 2022, de las cuales se reciclaron unas 28 000. La reforma de la Ley 8839 incluye los sistemas de depósito y reembolso entre los instrumentos de gestión de residuos. [Huella Plástica en Costa Rica, PNUD](https://pnud-conocimiento.cr/repositorio/huella_plastica_cr/) · [Reforma de la Ley 8839, Procuraduría General de la República](https://www.pgrweb.go.cr/DOCS/NORMAS/1/VIGENTE/L/2020-2029/2020-2024/2021/17513/14841C.HTML)
 
+## Por qué Stellar
+
+Soroban permite aplicar en una sola transacción las reglas del depósito, la autorización de la cuenta que firma y la transferencia de XLM mediante el Stellar Asset Contract. El ledger ofrece un estado consultable por ID y un registro público de los movimientos. Esto permite usar Freighter y un RPC de Testnet desde el navegador. La verificación física del envase sigue a cargo del comercio. [Contratos y activos en Stellar](https://developers.stellar.org/docs/learn/fundamentals/stellar-data-structures/assets)
+
 ## Contrato
 
 Cada despliegue configura un comercio y un Stellar Asset Contract (SAC). La instancia guarda esa configuración y el próximo ID. Cada depósito se guarda individualmente en almacenamiento persistente con su cliente, importe, estado y marcas de tiempo del ledger. El contrato usa Rust edición 2021 y `soroban-sdk` 28.0.0.
@@ -84,15 +88,28 @@ Desde la raíz, con Node.js 24.22.3:
 ```bash
 cd frontend
 npm ci
-npm run dev
+npm test
 npm run build
+npm run dev
 ```
 
 Abrí la URL que imprime Vite. La consulta por ID funciona sin billetera y el depósito #1 permite comprobar el despliegue de ejemplo. Para firmar, instalá Freighter, seleccioná Testnet y conectá tu cuenta de prueba. Para ensayar el flujo completo con tus propias cuentas, desplegá el contrato como se indica arriba y definí `VITE_RETICO_CONTRACT_ID` en `frontend/.env.local` con la dirección de ese despliegue. Reiniciá Vite después del cambio.
 
-La interfaz usa React, TypeScript, Motion y dos adaptaciones de Kokonut UI con licencia MIT. Los tokens CSS centralizan color, foco, espaciado y radios. El flujo prioriza dos acciones, crear o consultar, y muestra la confirmación de devolución únicamente al comercio cuando el depósito está pendiente.
+La segunda iteración incorpora un logo propio en SVG con variantes de encabezado, uso sobre fondo oscuro y favicon. The ReTico Loop recorre en una sola vuelta las etapas de envase, custodia, devolución y reembolso. La ilustración y las etiquetas quedan disponibles con movimiento reducido. La interfaz usa React, TypeScript, Motion y adaptaciones de Kokonut UI con licencia MIT. Los tokens CSS y de Motion controlan contraste, tipografía, espaciado, radios, sombras y duraciones.
 
-Las comprobaciones en Chromium cubrieron navegación por teclado, validación, consulta real de Testnet, el error por depósito inexistente, respuesta sin extensión y reflujo a 320 px. axe no detectó infracciones con las reglas WCAG 2.2 AA ejecutadas. La cobertura automatizada es parcial. El entorno de navegador usó el RPC público mediante un puente de pruebas para confiar en la CA del proxy de ejecución.
+El rol de la billetera se determina con la dirección de comercio registrada en el contrato. El comprobante muestra el ID copiable, el importe, el estado, las fechas del ledger en hora de Costa Rica y un enlace al explorador. Durante la sesión se enlaza la transacción asociada si está disponible. Las consultas por ID enlazan el contrato cuando el hash no está disponible.
+
+### Confirmaciones pendientes
+
+La interfaz distingue preparación, firma, envío y confirmación. Antes de enviar guarda en este navegador el hash público, el vencimiento, el primer ledger posible y el tipo de operación. Podés recargar y usar **Revisar confirmación** para consultar el mismo hash. El bloqueo de firmas se coordina entre pestañas del mismo origen. Los envíos requieren almacenamiento local y un navegador con Web Locks (localhost o HTTPS). Ningún dato de firma se guarda en ese registro.
+
+El reembolso se presenta como confirmado después de verificar su transacción y volver a leer el depósito del contrato. Si el RPC pierde temporalmente conectividad, se conserva la comprobación por hash. Si dejó de retener la ventana completa del envío, se necesita revisar el explorador para investigar el resultado de forma manual. En esa situación la interfaz conserva el bloqueo porque desconoce si la operación original se aplicó.
+
+### Verificación de la interfaz
+
+Las pruebas de Node cubren la recuperación de metadatos, su validación y los límites de la ventana de confirmación. GitHub Actions ejecuta las pruebas de frontend y el build junto con los 13 tests de Soroban y el build Wasm.
+
+Las comprobaciones en Chromium cubrieron navegación por teclado, validación, consulta real de Testnet, el error por depósito inexistente, respuesta sin extensión, comprobante, copia del ID, movimiento reducido y reflujo a 320 px. Se revisó el árbol de accesibilidad de Chromium. Queda pendiente una prueba con un lector de pantalla instalado. axe no detectó infracciones con las reglas WCAG 2.2 AA ejecutadas. La cobertura automatizada es parcial. El entorno de navegador usó el RPC público mediante un puente de pruebas para confiar en la CA del proxy de ejecución.
 
 El frontend también creó y reembolsó el depósito #2 en Testnet. La prueba automatizada sustituyó la extensión Freighter por un fixture que firmó con Stellar CLI. Así se comprobó el flujo de preparación, envío y confirmación con las dos cuentas de prueba. La interacción con la extensión instalada queda pendiente de una prueba manual. [Depósito #2](https://stellar.expert/explorer/testnet/tx/af835148a6f44e857ab557beb2af1834eb4ae41cdcfa0f97c5f60b371c45087f) · [Reembolso #2](https://stellar.expert/explorer/testnet/tx/c2cc3066c1231fecb8c6fc0c28d8f8dac91ec44c72b9108891621e4327d7dda5)
 
@@ -105,4 +122,4 @@ El frontend también creó y reembolsó el depósito #2 en Testnet. La prueba au
 
 ## Entrega en main
 
-El repositorio reúne contrato, pruebas, flujo de GitHub Actions e interfaz en `main`. Para presentar el proyecto, enlazá esa rama, la ejecución de Actions y las transacciones de la demostración. Si la red de pruebas se reinicia, repetí el despliegue, actualizá la dirección pública del frontend y registrá las nuevas transacciones.
+El repositorio reúne contrato, pruebas, flujo de GitHub Actions e interfaz en `main`. El commit `5335ea7` es la referencia estable anterior al rediseño. Para presentar el proyecto, enlazá esa rama, la ejecución de Actions y las transacciones de la demostración. Si la red de pruebas se reinicia, repetí el despliegue, actualizá la dirección pública del frontend y registrá las nuevas transacciones.

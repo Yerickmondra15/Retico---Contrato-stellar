@@ -3,7 +3,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test --test-isolation=none"
   },
   "type": "module",
   "private": true,

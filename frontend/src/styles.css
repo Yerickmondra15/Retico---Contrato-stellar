@@ -196,3 +196,25 @@ input::placeholder { color: var(--muted); }
 @media (prefers-reduced-motion: reduce) {
   .loop *, .loop *::before, .loop *::after { transition: none; animation: none; }
 }
+
+/* Rotate the brand accent without moving or resizing the headline. */
+.hero-headline {
+  --headline-cycle: 6s;
+  --headline-offset: -2s;
+}
+.hero-word { color: var(--paper); }
+.hero-word-reuse { color: var(--lime); }
+@media (prefers-reduced-motion: no-preference) {
+  .hero-word {
+    animation: hero-accent-cycle var(--headline-cycle) linear infinite;
+  }
+  .hero-word-return { animation-delay: var(--headline-offset); }
+  .hero-word-reuse { animation-delay: 0s; }
+  .hero-word-repeat { animation-delay: calc(var(--headline-offset) * 2); }
+
+  @keyframes hero-accent-cycle {
+    0%, 27% { color: var(--lime); }
+    33.333%, 94% { color: var(--paper); }
+    100% { color: var(--lime); }
+  }
+}
